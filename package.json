@@ -4,7 +4,9 @@
   "description": "Cat Run — a minimal ink-on-paper endless runner. Swap your runner between cats and memes mid-jump as day inverts into night.",
   "private": true,
   "scripts": {
-    "test": "node tests/run.js"
+    "test": "node tests/run.js && node tests/gameplay.js",
+    "test:stutter": "node tests/run.js",
+    "test:gameplay": "node tests/gameplay.js"
   },
   "license": "MIT"
 }

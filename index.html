@@ -674,8 +674,15 @@ function frame(ts){
 }
 requestAnimationFrame(frame);
 
-// expose for testing/CI screenshotting
-window.__cozy={S:S,start:start,swap:swap,jump:doJump,advance:advance,STEP:STEP,setChar:function(i){ci=i;lset('cozyCatCafe.char',i);},setNight:function(v){S.night=v;nSmooth=v;},roster:ROSTER,p:p,obs:obs};
+// expose for testing/CI screenshotting (read-only helpers — no gameplay effect)
+window.__cozy={S:S,start:start,swap:swap,jump:doJump,advance:advance,STEP:STEP,
+  setChar:function(i){ci=i;lset('cozyCatCafe.char',i);},
+  setNight:function(v){S.night=v;nSmooth=v;},
+  roster:ROSTER,p:p,obs:obs,
+  geom:function(){return {W:W,H:H,GY:GY};},   // ground/canvas geometry (adapts to portrait)
+  ci:function(){return ci;},
+  setHi:function(v){S.hi=v;lset('cozyCatCafe.hi',v);},
+  duck:setDuck, pause:pause, lget:lget};
 })();
 </script>
 </body>
