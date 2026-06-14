@@ -119,7 +119,7 @@ async function main(){
     check('no console errors / exceptions', errors.length===0, errors.join(' | ') || 'none');
 
     let failed=0;
-    console.log('\nCozy Cat Café Run — stutter-fix tests\n');
+    console.log('\nCat Run — stutter-fix tests\n');
     for(const r of results){
       console.log(`  ${r.pass?'\x1b[32m✓\x1b[0m':'\x1b[31m✗\x1b[0m'} ${r.name}  \x1b[2m(${r.detail})\x1b[0m`);
       if(!r.pass) failed++;

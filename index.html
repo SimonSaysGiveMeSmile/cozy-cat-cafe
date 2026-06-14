@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-<title>Cozy Cat Café Run</title>
-<meta name="description" content="A minimal ink-on-paper endless runner through the warmest café in town — swap your runner between cats and memes mid-jump as day inverts into night." />
+<title>Cat Run</title>
+<meta name="description" content="Cat Run — a minimal ink-on-paper endless runner. Swap your runner between cats and memes mid-jump as day inverts into night. Built for phones and desktop." />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
@@ -62,21 +62,25 @@
   button.ui:hover{background:var(--ink); color:var(--paper)}
   button.ui:active{transform:translateY(1px)}
   button.ui:focus-visible{outline:none; box-shadow:0 0 0 3px var(--honey)}
-  /* big touch controls */
-  .touch{position:absolute; inset:0; pointer-events:none; display:none}
-  .touch.on{display:block}
-  .touch .tbtn{
-    position:absolute; pointer-events:auto; bottom:16px;
-    width:84px; height:84px; border-radius:18px;
-    border:1.5px solid var(--ink); background:rgba(244,238,227,.66); backdrop-filter:blur(2px);
-    font-family:"DM Mono",monospace; font-weight:500; font-size:11px; letter-spacing:.08em; color:var(--ink);
-    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px;
-    text-transform:uppercase;
+  /* primary touch controls — a bar BELOW the play area, big thumb targets */
+  .pad{
+    display:flex; gap:12px; width:min(920px,100%); margin-top:2px;
+    touch-action:none;
   }
-  .touch .tbtn .em{font-size:24px; line-height:1; font-weight:400}
-  .touch .jump{right:16px}
-  .touch .duck{left:16px}
-  .touch .swapt{top:16px; right:16px; bottom:auto; width:60px; height:60px; border-radius:14px}
+  .cbtn{
+    flex:1; min-height:74px; border-radius:16px; cursor:pointer;
+    border:1.5px solid var(--ink); background:#fff; color:var(--ink);
+    font-family:"DM Mono",monospace; font-weight:500; font-size:11px; letter-spacing:.14em;
+    text-transform:uppercase; -webkit-tap-highlight-color:transparent; user-select:none;
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px;
+    transition:background .1s ease, color .1s ease, transform .05s ease;
+  }
+  .cbtn .em{font-size:26px; line-height:1; font-weight:400}
+  .cbtn.jump{flex:1.5; background:var(--ink); color:var(--paper)}      /* jump is the hero action */
+  .cbtn.jump .em{transform:translateY(-1px)}
+  .cbtn:active{transform:translateY(2px)}
+  .cbtn.duck.held,.cbtn:active{background:var(--ink); color:var(--paper)}
+  .cbtn:focus-visible{outline:none; box-shadow:0 0 0 3px var(--honey)}
   .sr{position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap}
   footer{font-size:11px; letter-spacing:.06em; color:var(--soft); text-align:center; margin-top:2px}
   footer a{color:var(--ink); text-underline-offset:3px}
@@ -85,20 +89,20 @@
 <body>
   <header>
     <p class="kicker">Endless Runner · Swap Mid-Jump</p>
-    <h1>Cozy Cat Café Run</h1>
+    <h1>Cat Run</h1>
     <div class="rule"></div>
   </header>
   <div class="stage">
-    <canvas id="game" width="900" height="380" tabindex="0" role="img" aria-label="Cozy Cat Café Run — a minimal endless runner. Press space to jump, down to duck, C to swap your character."></canvas>
-    <div class="touch" id="touch" aria-hidden="true">
-      <button class="tbtn jump" id="tjump"><span class="em">▲</span>Jump</button>
-      <button class="tbtn duck" id="tduck"><span class="em">▼</span>Duck</button>
-      <button class="tbtn swapt" id="tswap"><span class="em">⇄</span></button>
-    </div>
+    <canvas id="game" width="900" height="380" tabindex="0" role="img" aria-label="Cat Run — a minimal endless runner. Tap or press space to jump, down to duck, C to swap your character."></canvas>
   </div>
-  <p class="hint" id="hint"><b>Space</b> jump · <b>↓</b> duck · <b>C</b> swap · <b>M</b> mute · <b>P</b> pause</p>
+  <p class="hint" id="hint"><b>Tap JUMP</b> or Space · hold <b>DUCK</b> · <b>SWAP</b> mid-run</p>
+  <!-- Primary controls live OUTSIDE the play area — big thumb targets -->
+  <div class="pad" id="pad">
+    <button class="cbtn duck" id="tduck"><span class="em">▼</span><span class="lbl">Duck</span></button>
+    <button class="cbtn swap" id="tswap"><span class="em">⇄</span><span class="lbl">Swap</span></button>
+    <button class="cbtn jump" id="tjump"><span class="em">▲</span><span class="lbl">Jump</span></button>
+  </div>
   <div class="bar">
-    <button class="ui" id="bswap" aria-label="Swap character">⇄ Swap</button>
     <button class="ui" id="bmute" aria-label="Toggle sound">Sound</button>
     <button class="ui" id="bpause" aria-label="Pause">Pause</button>
   </div>
@@ -289,32 +293,21 @@ window.addEventListener('keyup',function(e){
   if((e.key===' '||e.key==='ArrowUp') && !p.grounded && p.vy<0){ p.vy*=0.5; } // variable height
 });
 
-// pointer / touch
-var touchEl=document.getElementById('touch');
-var coarse = ('ontouchstart' in window) || matchMedia('(pointer:coarse)').matches;
-if(coarse){ touchEl.classList.add('on'); }
+// pointer / touch — controls live in the .pad bar BELOW the play area
 function bindHold(el,onDown,onUp){
-  el.addEventListener('pointerdown',function(e){e.preventDefault(); aReady(); onDown();});
+  el.addEventListener('pointerdown',function(e){e.preventDefault(); aReady(); el.setPointerCapture&&el.setPointerCapture(e.pointerId); onDown();});
   el.addEventListener('pointerup',function(e){e.preventDefault(); onUp&&onUp();});
   el.addEventListener('pointercancel',function(e){onUp&&onUp();});
   el.addEventListener('pointerleave',function(e){onUp&&onUp();});
 }
 bindHold(document.getElementById('tjump'),function(){doJump();});
-bindHold(document.getElementById('tduck'),function(){setDuck(true);},function(){setDuck(false);});
-document.getElementById('tswap').addEventListener('pointerdown',function(e){e.preventDefault(); swap(1); if(S.phase==='start') startPreview=ci;});
+var duckBtn=document.getElementById('tduck');
+bindHold(duckBtn,function(){setDuck(true); duckBtn.classList.add('held');},function(){setDuck(false); duckBtn.classList.remove('held');});
+document.getElementById('tswap').addEventListener('pointerdown',function(e){e.preventDefault(); aReady(); swap(1); if(S.phase==='start') startPreview=ci;});
 
-// canvas tap: top half jump, bottom half duck-hold; two-finger swap
-var activePointers={};
-cv.addEventListener('pointerdown',function(e){ aReady(); cv.focus(); activePointers[e.pointerId]=1;
-  var keys=Object.keys(activePointers);
-  if(keys.length>=2){ swap(1); return; }
-  var rect=cv.getBoundingClientRect(); var ly=(e.clientY-rect.top)/rect.height;
-  if(ly>0.62 && S.phase==='play'){ setDuck(true); } else { doJump(); }
-});
-function ptUp(e){ delete activePointers[e.pointerId]; setDuck(false); }
-cv.addEventListener('pointerup',ptUp); cv.addEventListener('pointercancel',ptUp);
+// canvas tap anywhere = jump / start / retry (no controls live on the display itself)
+cv.addEventListener('pointerdown',function(e){ e.preventDefault(); aReady(); cv.focus(); doJump(); });
 
-document.getElementById('bswap').addEventListener('click',function(){ aReady(); swap(1); if(S.phase==='start') startPreview=ci; cv.focus(); });
 document.getElementById('bmute').addEventListener('click',function(){ toggleMute(); cv.focus(); });
 document.getElementById('bpause').addEventListener('click',function(){ pause(); cv.focus(); });
 document.getElementById('bmute').textContent=(muted?'Muted':'Sound');
@@ -613,7 +606,7 @@ function card(x,y,w,h){ ctx.fillStyle=fieldRGB(); roundRect(ctx,x,y,w,h,12); ctx
 
 function drawStart(){
   veil(); ctx.textAlign='center'; ctx.textBaseline='alphabetic';
-  ctx.font='800 40px '+DISP; ctx.fillStyle=lineCol(1); ctx.fillText('Cozy Cat Café Run', W/2, 92);
+  ctx.font='800 46px '+DISP; ctx.fillStyle=lineCol(1); ctx.fillText('Cat Run', W/2, 92);
   ctx.font='400 12px '+MONO; ctx.fillStyle=lineCol(0.6);
   ctx.fillText('SWAP YOUR RUNNER BETWEEN CATS & MEMES — MID-JUMP', W/2, 116);
   // preview character on a clean baseline
