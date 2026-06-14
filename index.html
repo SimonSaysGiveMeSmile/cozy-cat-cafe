@@ -142,6 +142,12 @@ function lineCol(a){ var c=mix(INK,PAPER,nSmooth); return 'rgba('+c[0]+','+c[1]+
 var RMq=matchMedia('(prefers-reduced-motion: reduce)'); var RM=RMq.matches;
 RMq.addEventListener && RMq.addEventListener('change',function(e){RM=e.matches;});
 
+// touch vs keyboard — so on-screen prompts never tell a phone to "press SPACE"
+var isTouch = ('ontouchstart' in window) || (navigator.maxTouchPoints||0)>0;
+function startHint(){ return isTouch ? 'TAP TO START' : 'PRESS SPACE TO START'; }
+function retryHint(){ return isTouch ? 'TAP to retry  ·  SWAP changes your cat' : 'SPACE retry   ·   R reshuffle'; }
+function resumeHint(){ return isTouch ? 'TAP PAUSE TO RESUME' : 'PRESS P TO RESUME'; }
+
 // ---------- storage (safe) ----------
 function lget(k,d){ try{var v=localStorage.getItem(k); return v===null?d:v;}catch(e){return d;} }
 function lset(k,v){ try{localStorage.setItem(k,v);}catch(e){} }
@@ -622,11 +628,11 @@ function drawStart(){
   ctx.font='62px '+EMO; ctx.fillStyle=lineCol(1); ctx.textBaseline='alphabetic'; ctx.fillText(ROSTER[startPreview].e, W/2, 214+Math.sin(S.t*0.08)*4);
   ctx.font='500 17px '+MONO; ctx.fillStyle=lineCol(1); ctx.fillText('◀  '+ROSTER[startPreview].n.toUpperCase()+'  ▶', W/2, 250);
   ctx.font='400 11px '+MONO; ctx.fillStyle=lineCol(0.55); ctx.fillText(ROSTER[startPreview].v, W/2, 268);
-  ctx.font='500 14px '+MONO; ctx.fillStyle=lineCol(1); ctx.fillText('PRESS SPACE / TAP TO START', W/2, 304+Math.sin(S.t*0.2)*1.2);
+  ctx.font='500 14px '+MONO; ctx.fillStyle=lineCol(1); ctx.fillText(startHint(), W/2, 304+Math.sin(S.t*0.2)*1.2);
   ctx.font='400 11px '+MONO; ctx.fillStyle=lineCol(0.5); ctx.fillText('⇄ swap  ·  best '+pad(S.hi), W/2, 324);
   ctx.restore();
 }
-function drawPause(){ veil(); ctx.save(); ctx.translate(0,(H-380)/2); ctx.textAlign='center'; ctx.fillStyle=lineCol(1); ctx.font='800 32px '+DISP; ctx.fillText('Paused', W/2,168); ctx.font='400 12px '+MONO; ctx.fillStyle=lineCol(0.6); ctx.fillText('PRESS P TO RESUME', W/2,196); ctx.restore(); }
+function drawPause(){ veil(); ctx.save(); ctx.translate(0,(H-380)/2); ctx.textAlign='center'; ctx.fillStyle=lineCol(1); ctx.font='800 32px '+DISP; ctx.fillText('Paused', W/2,168); ctx.font='400 12px '+MONO; ctx.fillStyle=lineCol(0.6); ctx.fillText(resumeHint(), W/2,196); ctx.restore(); }
 function drawOver(){
   veil(); ctx.save(); ctx.translate(0,(H-380)/2);
   ctx.textAlign='center'; ctx.textBaseline='alphabetic';
@@ -638,7 +644,7 @@ function drawOver(){
   ctx.font='400 11px '+MONO; ctx.fillStyle=lineCol(0.55); ctx.fillText('METRES', W/2, cardY+154);
   if(S.newBest){ ctx.fillStyle=HONEY; ctx.font='500 13px '+MONO; ctx.fillText('★ NEW BEST ★', W/2, cardY+176); }
   else { ctx.fillStyle=lineCol(0.6); ctx.font='400 12px '+MONO; ctx.fillText('BEST  '+pad(S.hi), W/2, cardY+176); }
-  ctx.fillStyle=lineCol(0.7); ctx.font='400 11px '+MONO; ctx.fillText('SPACE retry   ·   R reshuffle', W/2, cardY+196);
+  ctx.fillStyle=lineCol(0.7); ctx.font='400 11px '+MONO; ctx.fillText(retryHint(), W/2, cardY+196);
   ctx.restore();
 }
 // reshuffle key
@@ -682,7 +688,8 @@ window.__cozy={S:S,start:start,swap:swap,jump:doJump,advance:advance,STEP:STEP,
   geom:function(){return {W:W,H:H,GY:GY};},   // ground/canvas geometry (adapts to portrait)
   ci:function(){return ci;},
   setHi:function(v){S.hi=v;lset('cozyCatCafe.hi',v);},
-  duck:setDuck, pause:pause, lget:lget};
+  duck:setDuck, pause:pause, lget:lget,
+  isTouch:isTouch, hints:function(){return {start:startHint(),retry:retryHint(),resume:resumeHint()};}};
 })();
 </script>
 </body>

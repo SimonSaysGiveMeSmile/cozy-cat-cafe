@@ -91,6 +91,9 @@ const TEST = `(function(){
   for(var i=0;i<6;i++) z.advance(100/6);                      // same elapsed, chunked
   out.fastObstacleHitChunked = z.S.phase==='over';
 
+  // 12. on-screen prompts match the input mode (no "press SPACE" on a phone)
+  out.isTouch = z.isTouch; out.hints = z.hints();
+
   return JSON.stringify(out);
 })()`;
 
@@ -163,6 +166,9 @@ async function main(){
     check('big frame splits into 6 sub-steps',    o.bigFrameSubs===6,              `subs=${o.bigFrameSubs}`);
     check('fast obstacle caught in one big frame',o.fastObstacleHit===true,        `hit=${o.fastObstacleHit}`);
     check('outcome identical when frame chunked',  o.fastObstacleHitChunked===true && o.fastObstacleHit===o.fastObstacleHitChunked, `chunked=${o.fastObstacleHitChunked}`);
+    const hintsCoherent = o.hints &&
+      (o.isTouch ? /TAP/.test(o.hints.retry) && /TAP/.test(o.hints.start) : /SPACE/.test(o.hints.retry) && /SPACE/.test(o.hints.start));
+    check('prompts match input mode (no phantom keys)', hintsCoherent, `isTouch=${o.isTouch} retry="${o.hints&&o.hints.retry}"`);
     check('no console errors / exceptions',       errors.length===0,               errors.join(' | ') || 'none');
 
     let failed=0;
