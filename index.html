@@ -113,10 +113,17 @@
 (function(){
 "use strict";
 var cv=document.getElementById('game'), ctx=cv.getContext('2d');
-var W=900,H=380, GY=300; // logical
+var W=900,H=380, GY=300; // logical (H/GY adapt to a taller, near-square box in portrait)
 var DPR=Math.min(2, window.devicePixelRatio||1);
-function size(){ cv.width=W*DPR; cv.height=H*DPR; ctx.setTransform(DPR,0,0,DPR,0,0); }
+function dims(){
+  var portrait = window.innerHeight > window.innerWidth;
+  W = 900;                       // keep the horizontal track constant → same difficulty
+  H = portrait ? 820 : 380;      // phones in portrait get a tall, near-square viewport
+  GY = H - 80;                   // ground stays 80px off the bottom (=300 when H=380)
+}
+function size(){ dims(); DPR=Math.min(2, window.devicePixelRatio||1); cv.width=W*DPR; cv.height=H*DPR; ctx.setTransform(DPR,0,0,DPR,0,0); }
 size();
+window.addEventListener('resize', size);
 var DISP='"Bricolage Grotesque", system-ui, -apple-system, sans-serif';
 var MONO='"DM Mono", ui-monospace, monospace';
 var EMO='"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif'; // color-emoji safe stack
@@ -489,7 +496,7 @@ function draw(){
   }
   // stars at night
   if(n>0.4){ ctx.globalAlpha=(n-0.4)/0.6*0.8; ctx.fillStyle=lineCol(1);
-    for(var st=0;st<16;st++){ var stx=(st*97+30)%W, sty=(st*53)%140+20; ctx.fillRect(stx,sty,2,2); }
+    for(var st=0;st<16;st++){ var stx=(st*97+30)%W, sty=(st*53)%Math.max(140,GY-160)+20; ctx.fillRect(stx,sty,2,2); }
     ctx.globalAlpha=1;
   }
 
@@ -497,7 +504,7 @@ function draw(){
   ctx.strokeStyle=lineCol(0.16); ctx.lineWidth=1.5;
   for(var cl=0;cl<4;cl++){
     var clx=((cl*260 - (S.dist*0.18))%(W+220)+W+220)%(W+220)-110;
-    var cly=58+(cl%3)*26;
+    var cly=50+(cl%3)*Math.max(26, GY*0.18);
     ctx.beginPath();
     ctx.arc(clx,cly,12,Math.PI*0.5,Math.PI*1.5);
     ctx.arc(clx+16,cly-8,15,Math.PI*0.8,Math.PI*1.9);
@@ -507,9 +514,9 @@ function draw(){
 
   // distant rooftops (thin outline parallax)
   ctx.strokeStyle=lineCol(0.14); ctx.lineWidth=1.5; ctx.beginPath();
-  var rofX=-(S.dist*0.12)%140;
-  ctx.moveTo(rofX-20,232);
-  for(var rx=rofX-20;rx<W+80;rx+=140){ ctx.lineTo(rx+34,206); ctx.lineTo(rx+70,232); ctx.lineTo(rx+76,232); ctx.lineTo(rx+110,210); ctx.lineTo(rx+140,232); }
+  var rofX=-(S.dist*0.12)%140, rfB=GY-68, rfP=GY-94, rfP2=GY-90;
+  ctx.moveTo(rofX-20,rfB);
+  for(var rx=rofX-20;rx<W+80;rx+=140){ ctx.lineTo(rx+34,rfP); ctx.lineTo(rx+70,rfB); ctx.lineTo(rx+76,rfB); ctx.lineTo(rx+110,rfP2); ctx.lineTo(rx+140,rfB); }
   ctx.stroke();
 
   // ground: one crisp line + scrolling marks (dino-style)
@@ -605,7 +612,8 @@ function veil(){ ctx.fillStyle=lineCol(0.12); ctx.fillRect(0,0,W,H); }
 function card(x,y,w,h){ ctx.fillStyle=fieldRGB(); roundRect(ctx,x,y,w,h,12); ctx.fill(); ctx.strokeStyle=lineCol(1); ctx.lineWidth=2; roundRect(ctx,x,y,w,h,12); ctx.stroke(); }
 
 function drawStart(){
-  veil(); ctx.textAlign='center'; ctx.textBaseline='alphabetic';
+  veil(); ctx.save(); ctx.translate(0,(H-380)/2);
+  ctx.textAlign='center'; ctx.textBaseline='alphabetic';
   ctx.font='800 46px '+DISP; ctx.fillStyle=lineCol(1); ctx.fillText('Cat Run', W/2, 92);
   ctx.font='400 12px '+MONO; ctx.fillStyle=lineCol(0.6);
   ctx.fillText('SWAP YOUR RUNNER BETWEEN CATS & MEMES — MID-JUMP', W/2, 116);
@@ -616,10 +624,12 @@ function drawStart(){
   ctx.font='400 11px '+MONO; ctx.fillStyle=lineCol(0.55); ctx.fillText(ROSTER[startPreview].v, W/2, 268);
   ctx.font='500 14px '+MONO; ctx.fillStyle=lineCol(1); ctx.fillText('PRESS SPACE / TAP TO START', W/2, 304+Math.sin(S.t*0.2)*1.2);
   ctx.font='400 11px '+MONO; ctx.fillStyle=lineCol(0.5); ctx.fillText('⇄ swap  ·  best '+pad(S.hi), W/2, 324);
+  ctx.restore();
 }
-function drawPause(){ veil(); ctx.textAlign='center'; ctx.fillStyle=lineCol(1); ctx.font='800 32px '+DISP; ctx.fillText('Paused', W/2,168); ctx.font='400 12px '+MONO; ctx.fillStyle=lineCol(0.6); ctx.fillText('PRESS P TO RESUME', W/2,196); }
+function drawPause(){ veil(); ctx.save(); ctx.translate(0,(H-380)/2); ctx.textAlign='center'; ctx.fillStyle=lineCol(1); ctx.font='800 32px '+DISP; ctx.fillText('Paused', W/2,168); ctx.font='400 12px '+MONO; ctx.fillStyle=lineCol(0.6); ctx.fillText('PRESS P TO RESUME', W/2,196); ctx.restore(); }
 function drawOver(){
-  veil(); ctx.textAlign='center'; ctx.textBaseline='alphabetic';
+  veil(); ctx.save(); ctx.translate(0,(H-380)/2);
+  ctx.textAlign='center'; ctx.textBaseline='alphabetic';
   var cw=340, cx=W/2-cw/2, cardY=64, chh=204;
   card(cx,cardY,cw,chh);
   ctx.fillStyle=lineCol(1); ctx.font='500 13px '+MONO; ctx.fillText('— GAME OVER —', W/2, cardY+34);
@@ -629,6 +639,7 @@ function drawOver(){
   if(S.newBest){ ctx.fillStyle=HONEY; ctx.font='500 13px '+MONO; ctx.fillText('★ NEW BEST ★', W/2, cardY+176); }
   else { ctx.fillStyle=lineCol(0.6); ctx.font='400 12px '+MONO; ctx.fillText('BEST  '+pad(S.hi), W/2, cardY+176); }
   ctx.fillStyle=lineCol(0.7); ctx.font='400 11px '+MONO; ctx.fillText('SPACE retry   ·   R reshuffle', W/2, cardY+196);
+  ctx.restore();
 }
 // reshuffle key
 window.addEventListener('keydown',function(e){ if((e.key==='r'||e.key==='R') && S.phase==='over'){ reshuffle(); } });
