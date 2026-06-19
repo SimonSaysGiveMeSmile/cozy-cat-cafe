@@ -84,6 +84,48 @@
   .sr{position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap}
   footer{font-size:11px; letter-spacing:.06em; color:var(--soft); text-align:center; margin-top:2px}
   footer a{color:var(--ink); text-underline-offset:3px}
+  /* ── "make it yours" sheet ── */
+  .sheet-back{position:fixed; inset:0; z-index:40; display:flex; align-items:center; justify-content:center;
+    padding:18px; background:rgba(36,31,26,.34); backdrop-filter:blur(3px); -webkit-backdrop-filter:blur(3px);}
+  .sheet-back[hidden]{display:none}
+  .sheet{position:relative; width:min(440px,100%); max-height:88vh; overflow:auto;
+    background:var(--paper); color:var(--ink); border:1.5px solid var(--ink); border-radius:14px;
+    box-shadow:9px 9px 0 rgba(36,31,26,.16); padding:22px 22px 20px;
+    background-image:repeating-linear-gradient(0deg, transparent 0 23px, rgba(36,31,26,.03) 23px 24px);}
+  .sheet h2{margin:0 0 16px; font-family:"Bricolage Grotesque",system-ui,sans-serif; font-weight:800;
+    font-size:23px; letter-spacing:-.01em;}
+  .sheet-x{position:absolute; top:12px; right:14px; width:32px; height:32px; border:1.5px solid var(--ink);
+    background:transparent; color:var(--ink); border-radius:8px; font-size:18px; line-height:1; cursor:pointer;}
+  .sheet-x:hover{background:var(--ink); color:var(--paper)}
+  .fld{display:block; margin:0 0 18px}
+  .fld>span{display:block; font-size:11px; letter-spacing:.08em; text-transform:uppercase; color:var(--soft); margin-bottom:7px}
+  .fld>span em{font-style:normal; opacity:.72; text-transform:none; letter-spacing:.02em}
+  .sheet input[type=text]{width:100%; font-family:"DM Mono",monospace; font-size:15px; color:var(--ink);
+    background:#fff; border:1.5px solid var(--ink); border-radius:9px; padding:11px 12px; outline:none;}
+  .sheet input[type=text]:focus{box-shadow:0 0 0 3px var(--honey)}
+  .runnerrow{display:flex; align-items:center; gap:10px}
+  .runnerrow input{flex:1}
+  .bigemo{width:52px; height:52px; min-width:52px; display:flex; align-items:center; justify-content:center;
+    font-size:30px; border:1.5px solid var(--ink); border-radius:10px; background:#fff;}
+  .ui.sm{padding:11px 13px; font-size:11px; white-space:nowrap}
+  .chips{display:flex; flex-wrap:wrap; gap:7px; margin-top:11px}
+  .chip{width:38px; height:38px; font-size:20px; line-height:1; cursor:pointer; border:1.5px solid var(--hair);
+    border-radius:9px; background:#fff; transition:border-color .12s ease, transform .05s ease;}
+  .chip:hover{border-color:var(--ink)}
+  .chip:active{transform:translateY(1px)}
+  .tinynote{margin:11px 0 0; font-size:11px; color:var(--soft); line-height:1.5}
+  .tinynote b{color:var(--ink); font-weight:500}
+  .board{margin-top:6px; border-top:1.5px solid var(--hair); padding-top:14px}
+  .board-h{display:flex; justify-content:space-between; align-items:baseline; font-size:11px;
+    letter-spacing:.08em; text-transform:uppercase; color:var(--soft); margin-bottom:8px}
+  .board ol{list-style:none; margin:0; padding:0; counter-reset:rk}
+  .board li{display:flex; align-items:center; gap:9px; padding:6px 2px; font-size:13px; border-bottom:1px solid var(--hair)}
+  .board li:last-child{border-bottom:0}
+  .board li .rk{width:18px; color:var(--soft); font-size:11px; text-align:right}
+  .board li .nm{flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+  .board li .sc{color:var(--honey); font-weight:500}
+  .board li.you{background:rgba(201,138,46,.12); border-radius:6px}
+  .board-empty{color:var(--soft); font-size:12px; justify-content:center}
 </style>
 </head>
 <body>
@@ -103,10 +145,37 @@
     <button class="cbtn jump" id="tjump"><span class="em">▲</span><span class="lbl">Jump</span></button>
   </div>
   <div class="bar">
+    <button class="ui" id="bcustom" aria-label="Make it yours — name &amp; custom runner">✦ Make it yours</button>
     <button class="ui" id="bmute" aria-label="Toggle sound">Sound</button>
     <button class="ui" id="bpause" aria-label="Pause">Pause</button>
   </div>
   <div class="sr" id="sr" aria-live="polite"></div>
+
+  <!-- "make it yours": display name + custom emoji runner + live leaderboard -->
+  <div class="sheet-back" id="sheetback" hidden>
+    <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetttl">
+      <button class="sheet-x" id="sheetx" aria-label="Close">×</button>
+      <h2 id="sheetttl">Make it yours</h2>
+      <label class="fld">
+        <span>Your name <em>· shown on the global board</em></span>
+        <input id="nameinput" type="text" maxlength="14" placeholder="e.g. moai_fan" autocomplete="off" spellcheck="false" />
+      </label>
+      <div class="fld">
+        <span>Your runner <em>· any emoji becomes your character</em></span>
+        <div class="runnerrow">
+          <div class="bigemo" id="emopreview">🐱</div>
+          <input id="emoinput" type="text" maxlength="8" placeholder="type or paste an emoji" autocomplete="off" />
+          <button class="ui sm" id="ridebtn">Ride it</button>
+        </div>
+        <div class="chips" id="emochips"></div>
+        <p class="tinynote">…or press <b>C</b> / tap <b>Swap</b> to cycle the 12 built-in cats &amp; memes.</p>
+      </div>
+      <div class="board">
+        <div class="board-h"><span>Global top</span><span id="boardtoday"></span></div>
+        <ol id="boardlist"><li class="board-empty">loading…</li></ol>
+      </div>
+    </div>
+  </div>
   <footer>Built by <a href="https://github.com/SimonSaysGiveMeSmile" target="_blank" rel="noopener">SimonSaysGiveMeSmile</a> · swap mid-run, find your vibe</footer>
 
 <script>
@@ -167,8 +236,27 @@ var ROSTER=[
   {e:'🤓',n:'Nerd',v:'shows live combo',t:{combo:true}},
   {e:'💀',n:'Skull',v:'this is fine · night cap',t:{night:true}}
 ];
+// player-made runners (any emoji) — appended after the 12 presets, indices stay stable
+var customs=[]; try{ customs=JSON.parse(lget('cozyCatCafe.customs','[]'))||[]; }catch(e){ customs=[]; }
+if(!Array.isArray(customs)) customs=[];
+if(customs.length>24){ customs=customs.slice(-24); lset('cozyCatCafe.customs',JSON.stringify(customs)); } // honor the cap even for legacy/edited storage
+customs.forEach(function(em){ ROSTER.push({e:em,n:'Yours',v:'a runner you made',t:{custom:true}}); });
+// split on grapheme clusters so multi-codepoint emoji (flags, ZWJ families, skin tones) survive intact
+function graphemes(str){ str=''+str;
+  if(typeof Intl!=='undefined' && Intl.Segmenter){ try{ var seg=new Intl.Segmenter(undefined,{granularity:'grapheme'}), out=[]; var it=seg.segment(str); for(var s of it) out.push(s.segment); return out; }catch(e){} }
+  return Array.from(str);
+}
 var ci=Math.max(0,Math.min(ROSTER.length-1, parseInt(lget('cozyCatCafe.char','0'),10)||0));
 function CH(){return ROSTER[ci];}
+function addCustom(em){
+  em=(''+(em||'')).trim(); if(!em) return false;
+  em=graphemes(em).slice(0,4).join('');           // first few grapheme clusters (ZWJ/flags/skin-tones safe)
+  if(customs.length>=24) customs.shift(),ROSTER.splice(12,1); // cap; oldest custom retires
+  customs.push(em); lset('cozyCatCafe.customs',JSON.stringify(customs));
+  ROSTER.push({e:em,n:'Yours',v:'a runner you made',t:{custom:true}});
+  ci=ROSTER.length-1; lset('cozyCatCafe.char',ci); startPreview=ci; nameChip();
+  say('Riding your '+em); return true;
+}
 
 // ---------- audio (synth, opt-in) ----------
 var muted = lget('cozyCatCafe.muted','1')==='1';
@@ -188,6 +276,24 @@ var S={phase:'start',dist:0,speed:6,score:0,bonus:0,hi:parseInt(lget('cozyCatCaf
 var parts=[], obs=[], floaters=[], chip=null;
 var p={x:150,y:0,vy:0,grounded:true,duck:false,sx:1,sy:1,coyote:0,buffer:0,spin:0};
 var startPreview=ci;
+
+// ---------- online: global leaderboard + racing ghosts (serverless, same-origin) ----------
+var GSTEP=12;                         // metres between ghost samples (must match nothing server-side but its own data)
+var rec={samples:[],next:0};          // this run's vertical track, sampled by distance
+var NET={top:[],ghosts:[],today:0,total:0,rank:null,sent:false,done:false,name:lget('cozyCatCafe.name','')};
+function apiURL(){ return (location.protocol==='http:'||location.protocol==='https:') ? '/api/scores' : null; } // dormant on file://
+function genName(){ var n=NET.name||lget('cozyCatCafe.name',''); if(!n){ n='cat-'+Math.random().toString(36).slice(2,6); lset('cozyCatCafe.name',n); NET.name=n; } return n; }
+function setName(v){ NET.name=(''+v).slice(0,14); lset('cozyCatCafe.name',NET.name); }
+function applyBoard(d){ if(!d) return; NET.top=d.top||[]; NET.today=d.today||0; NET.total=d.total||0;
+  // never swap the ghost array out from under a live render (e.g. a late response from a prior run)
+  if(S.phase!=='play') NET.ghosts=(d.ghosts||[]).map(function(g){ return {name:g.name,char:g.char,score:g.score,samples:g.samples||[],passed:false}; }); }
+function loadBoard(){ var u=apiURL(); if(!u) return; fetch(u).then(function(r){return r.json();}).then(function(d){ applyBoard(d); if(typeof sheet!=='undefined' && sheet && !sheet.hidden) renderModalBoard(); }).catch(function(e){ if(window.console&&console.warn) console.warn('catrun: leaderboard load failed', (e&&e.message)||e); }); }
+function submitRun(){ var u=apiURL(); var sc=curScore(); if(!u||NET.sent||sc<1) return; NET.sent=true;
+  var payload={name:genName(),char:CH().e,score:sc,samples:rec.samples};
+  fetch(u,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)})
+    .then(function(r){return r.json();}).then(function(d){ NET.done=true; if(d){ if(d.rank!=null) NET.rank=d.rank; applyBoard(d); renderModalBoard(); } })
+    .catch(function(e){ NET.done=true; if(window.console&&console.warn) console.warn('catrun: run submit failed', (e&&e.message)||e); });
+}
 
 var TIERS=[
   {name:'COZY',mult:1.0,warm:0},
@@ -222,6 +328,8 @@ function say(txt){ var sr=document.getElementById('sr'); if(sr) sr.textContent=t
 function start(){
   S.phase='play'; S.dist=0; S.speed=6; S.score=0; S.bonus=0; S.combo=0; S.vibe=0; S.tier=0; S.shake=0; S.slow=1; S.night=0; S.flash=0; S.banner=null;
   parts.length=0; obs.length=0; floaters.length=0; chip=null;
+  rec.samples=[]; rec.next=0; NET.sent=false; NET.done=false; NET.rank=null;
+  NET.ghosts.forEach(function(g){ g.passed=false; });
   p.y=0; p.vy=0; p.grounded=true; p.duck=false; p.sx=1; p.sy=1; p.coyote=0; p.buffer=0; p.spin=0;
   spawnGap=70; nextSpawn=80;
   hint(0.4);
@@ -232,6 +340,7 @@ function gameOver(){
   beep(180,0.4,'sine',0.12); setTimeout(function(){beep(120,0.5,'sine',0.1);},120);
   var sc=curScore(); var nb=sc>S.hi; if(nb){ S.hi=sc; lset('cozyCatCafe.hi',S.hi); }
   S.finalScore=sc; S.newBest=nb;
+  submitRun(); // post to the global leaderboard (no-op offline / on file://)
   say('Game over. Score '+sc+'. '+(nb?'New best!':'Best '+S.hi)+'. Press space to retry.');
   hint(1);
 }
@@ -291,6 +400,8 @@ function pause(){ if(S.phase==='play'){S.phase='pause'; hint(1); say('Paused');}
 function toggleMute(){ muted=!muted; lset('cozyCatCafe.muted',muted?'1':'0'); document.getElementById('bmute').textContent=(muted?'Muted':'Sound'); if(!muted) aReady(); }
 
 window.addEventListener('keydown',function(e){
+  if(typeof sheet!=='undefined' && sheet && !sheet.hidden) return;       // sheet open → don't drive the game
+  if(e.target && /^(INPUT|TEXTAREA)$/.test(e.target.tagName)) return;    // typing in a field → let keys through
   var k=e.key;
   if(k===' '||k==='ArrowUp'||k==='w'||k==='W'){ e.preventDefault();
     if(S.phase==='start'||S.phase==='over'){ doJump(); } else { doJump(); }
@@ -325,6 +436,48 @@ document.getElementById('bmute').addEventListener('click',function(){ toggleMute
 document.getElementById('bpause').addEventListener('click',function(){ pause(); cv.focus(); });
 document.getElementById('bmute').textContent=(muted?'Muted':'Sound');
 
+// ---------- "make it yours" sheet (name + custom runner + live board) ----------
+var sheet=document.getElementById('sheetback'), wasPlaying=false;
+var EMO_PICKS=['🐱','🦊','🐯','🐰','🐼','🐨','🐸','🐙','👾','🤖','👻','🎃','🥷','🦖','🐉','🦄','🍙','🧋','⭐','🔥','💎','🌮','🍣','😈'];
+(function(){ var box=document.getElementById('emochips'); if(!box) return;
+  EMO_PICKS.forEach(function(e){ var b=document.createElement('button'); b.className='chip'; b.type='button'; b.textContent=e;
+    b.setAttribute('aria-label','Use '+e);
+    b.addEventListener('click',function(){ var inp=document.getElementById('emoinput'); inp.value=e; document.getElementById('emopreview').textContent=e; inp.focus(); });
+    box.appendChild(b); });
+})();
+function esc(s){ return (''+s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
+function renderModalBoard(){
+  var list=document.getElementById('boardlist'), today=document.getElementById('boardtoday');
+  if(!list) return;
+  if(today) today.textContent = NET.today ? (NET.today+' run'+(NET.today===1?'':'s')+' today') : '';
+  if(!NET.top.length){ list.innerHTML='<li class="board-empty">be the first to set a score</li>'; return; }
+  var mine=(NET.name||'').toLowerCase();
+  list.innerHTML = NET.top.slice(0,10).map(function(T,i){
+    var nm=(T.name||'anon'); var you = mine && nm.toLowerCase()===mine ? 'you':'';
+    return '<li class="'+you+'"><span class="rk">'+(i+1)+'</span><span>'+esc(T.char||'')+'</span>'+
+           '<span class="nm">'+esc(nm)+'</span><span class="sc">'+(T.score|0)+'m</span></li>';
+  }).join('');
+}
+function openSheet(){
+  wasPlaying=(S.phase==='play'); if(wasPlaying) pause();
+  document.getElementById('nameinput').value=NET.name||'';
+  document.getElementById('emopreview').textContent=CH().e; document.getElementById('emoinput').value='';
+  sheet.hidden=false; renderModalBoard(); loadBoard();
+  setTimeout(function(){ try{document.getElementById('nameinput').focus();}catch(e){} },30);
+}
+function closeSheet(){ sheet.hidden=true; if(wasPlaying && S.phase==='pause') pause();
+  try{ if(document.activeElement && document.activeElement.blur) document.activeElement.blur(); }catch(e){} // dismiss mobile keyboard
+  cv.focus(); }
+function doRide(){ if(addCustom(document.getElementById('emoinput').value)){ closeSheet(); } else { document.getElementById('emoinput').focus(); } }
+document.getElementById('bcustom').addEventListener('click',openSheet);
+document.getElementById('sheetx').addEventListener('click',closeSheet);
+sheet.addEventListener('click',function(e){ if(e.target===sheet) closeSheet(); });
+document.getElementById('nameinput').addEventListener('input',function(e){ setName(e.target.value); });
+document.getElementById('emoinput').addEventListener('input',function(e){ var v=e.target.value.trim(); document.getElementById('emopreview').textContent=v||CH().e; });
+document.getElementById('ridebtn').addEventListener('click',doRide);
+document.getElementById('emoinput').addEventListener('keydown',function(e){ if(e.key==='Enter'){ e.preventDefault(); doRide(); } });
+sheet.addEventListener('keydown',function(e){ if(e.key==='Escape'){ e.stopPropagation(); closeSheet(); } });
+
 document.addEventListener('visibilitychange',function(){ if(document.hidden && S.phase==='play'){ S.phase='pause'; } });
 
 // ---------- update ----------
@@ -336,6 +489,8 @@ function update(dt){
   var prevDist=S.dist;
   S.dist += S.speed*0.1*dt;
   S.night = Math.min(1, S.dist/1300);
+  // record vertical track for ghosts (sampled by distance, capped)
+  while(S.dist>=rec.next && rec.samples.length<340){ rec.samples.push(Math.round(p.y)); rec.next+=GSTEP; }
 
   // physics
   p.coyote = p.grounded?6:Math.max(0,p.coyote-dt);
@@ -552,6 +707,24 @@ function draw(){
   // obstacles (ink silhouettes)
   for(var o2=0;o2<obs.length;o2++){ var o=obs[o2]; if(o.grabbed) continue; drawObstacle(o); }
 
+  // racing ghosts — faint replays of the global top runs, indexed by distance
+  if(S.phase==='play' && NET.ghosts.length){
+    var goff=[-54,46,-88,82];
+    ctx.textAlign='center'; ctx.textBaseline='middle';
+    for(var gi=0; gi<NET.ghosts.length; gi++){ var G=NET.ghosts[gi], sm=G.samples;
+      if(!sm||sm.length<2) continue;
+      var fp=S.dist/GSTEP, gidx=Math.floor(fp);
+      if(gidx>sm.length-1){ if(!G.passed){ G.passed=true; floater(p.x, GY+p.y-74, 'passed '+G.name+' ✦', HONEY); } continue; }
+      var nx=Math.min(gidx+1, sm.length-1);
+      var gy=lerp(sm[gidx], sm[nx], fp-gidx), gx=p.x+goff[gi%goff.length];
+      ctx.globalAlpha=0.17; ctx.font='38px '+EMO; ctx.fillStyle=lineCol(1);
+      ctx.fillText(G.char||'🐾', gx, GY+gy-23);
+      ctx.globalAlpha=0.4; ctx.font='400 9px '+MONO; ctx.fillStyle=lineCol(1);
+      ctx.fillText(G.name, gx, GY+gy-48);
+      ctx.globalAlpha=1;
+    }
+  }
+
   // player shadow
   var py=GY+p.y, sh=Math.max(0.2,1-(-p.y)/120);
   ctx.fillStyle=lineCol(0.14*sh); ctx.beginPath(); ctx.ellipse(p.x,GY+7,24*p.sx*sh,6*sh,0,0,7); ctx.fill();
@@ -566,7 +739,7 @@ function draw(){
   ctx.scale(p.sx,p.sy*(p.duck?0.7:1)); ctx.translate(0,p.duck?8:0);
   ctx.font='44px '+EMO; ctx.textAlign='center'; ctx.textBaseline='middle';
   ctx.fillStyle=lineCol(1); // solid ink so monochrome-fallback glyphs render crisp (color emoji ignore this)
-  ctx.fillText(p.phase==='over'?'😵‍💫':CH().e, 0, 0);
+  ctx.fillText(S.phase==='over'?'😵‍💫':CH().e, 0, 0);
   ctx.restore();
   // nerd combo
   if(CH().t.combo && S.combo>0 && S.phase==='play'){ ctx.font='500 15px '+MONO; ctx.fillStyle=lineCol(1); ctx.fillText('x'+S.combo, p.x, py-58); }
@@ -630,6 +803,16 @@ function drawStart(){
   ctx.font='400 11px '+MONO; ctx.fillStyle=lineCol(0.55); ctx.fillText(ROSTER[startPreview].v, W/2, 268);
   ctx.font='500 14px '+MONO; ctx.fillStyle=lineCol(1); ctx.fillText(startHint(), W/2, 304+Math.sin(S.t*0.2)*1.2);
   ctx.font='400 11px '+MONO; ctx.fillStyle=lineCol(0.5); ctx.fillText('⇄ swap  ·  best '+pad(S.hi), W/2, 324);
+  // live global leaderboard (top 3 + runs today)
+  if(NET.top.length){
+    ctx.font='400 10px '+MONO; ctx.fillStyle=lineCol(0.5);
+    ctx.fillText('GLOBAL TOP  ·  '+NET.today+' RUN'+(NET.today===1?'':'S')+' TODAY', W/2, 341);
+    for(var li=0; li<Math.min(3,NET.top.length); li++){ var T=NET.top[li];
+      ctx.font=(li===0?'500 ':'400 ')+'11px '+MONO; ctx.fillStyle=lineCol(li===0?1:0.62);
+      var nm=(T.name||'anon'); if(nm.length>10) nm=nm.slice(0,10);
+      ctx.fillText((li+1)+'   '+(T.char||'')+'  '+nm+'   '+T.score+'m', W/2, 353+li*11); // last line y=375, clears the H=380 floor
+    }
+  }
   ctx.restore();
 }
 function drawPause(){ veil(); ctx.save(); ctx.translate(0,(H-380)/2); ctx.textAlign='center'; ctx.fillStyle=lineCol(1); ctx.font='800 32px '+DISP; ctx.fillText('Paused', W/2,168); ctx.font='400 12px '+MONO; ctx.fillStyle=lineCol(0.6); ctx.fillText(resumeHint(), W/2,196); ctx.restore(); }
@@ -645,10 +828,29 @@ function drawOver(){
   if(S.newBest){ ctx.fillStyle=HONEY; ctx.font='500 13px '+MONO; ctx.fillText('★ NEW BEST ★', W/2, cardY+176); }
   else { ctx.fillStyle=lineCol(0.6); ctx.font='400 12px '+MONO; ctx.fillText('BEST  '+pad(S.hi), W/2, cardY+176); }
   ctx.fillStyle=lineCol(0.7); ctx.font='400 11px '+MONO; ctx.fillText(retryHint(), W/2, cardY+196);
+  // global standing + mini leaderboard (only when online)
+  if(apiURL()){
+    var by=cardY+chh+26;
+    if(NET.rank){ ctx.fillStyle=HONEY; ctx.font='500 14px '+MONO; ctx.fillText('GLOBAL RANK  #'+NET.rank, W/2, by); }
+    else if(!NET.done){ ctx.fillStyle=lineCol(0.5); ctx.font='400 11px '+MONO; ctx.fillText('posting your run…', W/2, by); }
+    else { ctx.fillStyle=lineCol(0.5); ctx.font='400 11px '+MONO; ctx.fillText('keep climbing — not top 30 yet', W/2, by); }
+    if(NET.top.length){
+      ctx.font='400 10px '+MONO; ctx.fillStyle=lineCol(0.45); ctx.fillText('— GLOBAL TOP —', W/2, by+22);
+      for(var li2=0; li2<Math.min(3,NET.top.length); li2++){ var T2=NET.top[li2];
+        ctx.font=(li2===0?'500 ':'400 ')+'11px '+MONO; ctx.fillStyle=lineCol(li2===0?0.95:0.7);
+        var nm2=(T2.name||'anon'); if(nm2.length>10) nm2=nm2.slice(0,10);
+        ctx.fillText((li2+1)+'   '+(T2.char||'')+'  '+nm2+'   '+T2.score+'m', W/2, by+38+li2*12);
+      }
+    }
+  }
   ctx.restore();
 }
 // reshuffle key
-window.addEventListener('keydown',function(e){ if((e.key==='r'||e.key==='R') && S.phase==='over'){ reshuffle(); } });
+window.addEventListener('keydown',function(e){
+  if(typeof sheet!=='undefined' && sheet && !sheet.hidden) return;
+  if(e.target && /^(INPUT|TEXTAREA)$/.test(e.target.tagName)) return;
+  if((e.key==='r'||e.key==='R') && S.phase==='over'){ reshuffle(); }
+});
 
 // ---------- loop ----------
 // Frame-rate-independent stepping: advance the sim by REAL elapsed time, not a
@@ -679,9 +881,11 @@ function frame(ts){
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
+loadBoard(); // pull the global leaderboard + ghosts (no-op on file://)
 
 // expose for testing/CI screenshotting (read-only helpers — no gameplay effect)
 window.__cozy={S:S,start:start,swap:swap,jump:doJump,advance:advance,STEP:STEP,
+  NET:NET,loadBoard:loadBoard,submitRun:submitRun,addCustom:addCustom,applyBoard:applyBoard,
   setChar:function(i){ci=i;lset('cozyCatCafe.char',i);},
   setNight:function(v){S.night=v;nSmooth=v;},
   roster:ROSTER,p:p,obs:obs,
