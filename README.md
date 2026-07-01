@@ -11,7 +11,7 @@ A **minimal ink-on-paper** endless runner — and you can **swap your runner bet
 - 12-character roster (cats 😻😺😸😼🙀😹🐈 + memes 🗿🐸😎🤓💀), each with a distinct feel — the runner is the one splash of colour
 - Instant **poof swap** any time — even mid-jump
 - **Make it yours** — set a display name and ride *any* emoji you type/paste as your custom runner (grapheme-safe; persists locally)
-- **Online leaderboard + racing ghosts** — finish a run and you're posted to a global top board; the top runs come back as faint "ghosts" you race (and overtake) on your next run
+- **Online leaderboard + racing ghosts** — finish a run and you're posted to a global top board (🥇🥈🥉 medals for the podium, your own row highlighted, and your standing shown even when you land off the podium); the top runs come back as faint rank-labelled "ghosts" you race (and overtake) on your next run
 - Jump / duck obstacles, build the **vibe meter** through COZY → TOASTY → GOLDEN → PURR tiers
 - Frame-rate-independent loop — smooth on 60Hz and 120Hz/ProMotion displays alike
 - Single self-contained `index.html` · vanilla JS + Canvas · vector-drawn obstacles · persistent hi-score
@@ -41,6 +41,6 @@ npm test      # node tests/run.js && node tests/gameplay.js && node tests/online
 All three suites load the real `index.html` in headless Chrome (DevTools Protocol) and drive `window.__cozy`:
 - `run.js` — frame-stepping: no frozen frames at 120Hz, frame-rate independence across 30/60/120Hz, tunnel-safe sub-stepping, refocus-gap clamping, input→motion, no console errors.
 - `gameplay.js` — gameplay correctness: hazards, ducking, fish bonus, scoring/best, swap wrap, sub-step collision parity.
-- `online.js` — customization + leaderboard client: custom-emoji add/cap/persist, `applyBoard` parsing, ghost replay safety (no crash on tiny/partial tracks), offline no-op. Runs over `file://`, so it never touches the network.
+- `online.js` — customization + leaderboard client: custom-emoji add/cap/persist, `applyBoard` parsing, ghost replay safety (no crash on tiny/partial tracks), `boardModel` podium (medals / your-row / off-podium own-row), board rendering across every branch, offline no-op. Runs over `file://`, so it never touches the network.
 
 Requires Chrome (`CHROME_BIN` overrides the path).

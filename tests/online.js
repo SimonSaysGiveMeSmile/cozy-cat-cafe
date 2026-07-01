@@ -11,7 +11,10 @@
  *   4. applyBoard() populates NET (top / today / ghosts, passed=false).
  *   5. Ghost replay never crashes on tiny/partial/empty tracks (incl. the "passed" path).
  *   6. Offline: submitRun() is a no-op (NET.sent stays false on file://).
- *   7. No console errors / exceptions across the whole session (incl. rAF draws).
+ *   7. boardModel() builds the podium: medals for top 3, name-match "you" flag,
+ *      and an appended own-row when the player finishes off the shown list.
+ *   8. drawStart() + drawOver() render the medal boards without throwing.
+ *   9. No console errors / exceptions across the whole session (incl. rAF draws).
  */
 const { spawn } = require('child_process');
 const fs = require('fs');
@@ -68,6 +71,30 @@ const TEST = `(function(){
   z.submitRun();
   out.offlineNoSubmit=(z.NET.sent===false);
 
+  // 7. boardModel — podium medals, name-match "you" flag, own row for off-list finishers
+  var bmA=z.boardModel([{name:'aaa',char:'🐱',score:90},{name:'bbb',char:'🦊',score:80},{name:'ccc',char:'🦖',score:70},{name:'ddd',char:'🐸',score:60}], 3, 'zzz');
+  out.bmLen=(bmA.length===3);
+  out.bmMedals=(bmA[0].medal===true && bmA[1].medal===true && bmA[2].medal===true);
+  out.bmRanks=(bmA[0].rank===1 && bmA[2].rank===3);
+  out.bmNoYou=bmA.every(function(r){return !r.you;});
+  var bmB=z.boardModel([{name:'aaa',char:'🐱',score:90},{name:'bbb',char:'🦊',score:80},{name:'ccc',char:'🦖',score:70}], 3, 'me', 7, 55, '💀');
+  out.bmOwnRow=(bmB.length===4 && bmB[3].rank===7 && bmB[3].you===true && bmB[3].sep===true && bmB[3].char==='💀' && bmB[3].medal===false);
+  var bmC=z.boardModel([{name:'ME',char:'🐱',score:90},{name:'bbb',char:'🦊',score:80}], 3, 'me', 1, 90, '🐱');
+  out.bmYouMatch=(bmC[0].you===true && bmC.length===2);
+
+  // 8. render every board branch (medal disc, plain rank, you-pill, separator) directly —
+  //    apiURL()-independent, so it works over file:// where drawOver's board is gated off.
+  z.applyBoard({top:[{name:'tester',char:'🐱',score:100},{name:'two',char:'🦊',score:50},{name:'me',char:'🦖',score:30}],ghosts:[],today:2,total:9});
+  z.S.phase='start'; z.draw(); // start-screen podium (drawStart isn't apiURL-gated)
+  var g=z.geom(); var model=z.boardModel(
+    [{name:'a',char:'🐱',score:90},{name:'b',char:'🦊',score:80},{name:'c',char:'🦖',score:70}],
+    3, 'a', 7, 55, '💀'); // row0 = medal + you-pill; rows1-2 = medals; row3 = plain rank + you-pill + sep
+  out.modelBranches=(model.length===4 && model[0].you===true && model[0].medal===true &&
+                     model[3].sep===true && model[3].medal===false);
+  z.drawBoardRows(model, g.W/2, 200, 13);
+  z.S.finalScore=30; z.S.finalChar='💀'; z.NET.rank=7; z.NET.done=true; z.S.phase='over'; z.draw();
+  out.rendered=true;
+
   return JSON.stringify(out);
 })()`;
 
@@ -110,7 +137,7 @@ async function main(){
     const evalValue = (resp)=> resp && resp.result && resp.result.result && resp.result.result.value;
     let booted=false;
     for(let i=0;i<40;i++){
-      const r = await send('Runtime.evaluate',{expression:'!!(window.__cozy && window.__cozy.addCustom && window.__cozy.applyBoard)', returnByValue:true});
+      const r = await send('Runtime.evaluate',{expression:'!!(window.__cozy && window.__cozy.addCustom && window.__cozy.applyBoard && window.__cozy.boardModel && window.__cozy.draw && window.__cozy.drawBoardRows)', returnByValue:true});
       if(evalValue(r)===true){ booted=true; break; }
       await new Promise(r=>setTimeout(r,100));
     }
@@ -137,6 +164,13 @@ async function main(){
     check('applyBoard maps ghosts (passed=false)', o.ghostsOK, `ghostsOK=${o.ghostsOK}`);
     check('ghost replay survives tiny/partial tracks', o.stillHasGhosts && o.advancedDist>40, `dist=${o.advancedDist}`);
     check('offline submitRun is a no-op', o.offlineNoSubmit, `sent=${!o.offlineNoSubmit}`);
+    check('boardModel returns a 3-row podium', o.bmLen, `len3=${o.bmLen}`);
+    check('boardModel medals + ranks top 3', o.bmMedals && o.bmRanks, `medals=${o.bmMedals} ranks=${o.bmRanks}`);
+    check('boardModel flags matching name as you', o.bmYouMatch, `match=${o.bmYouMatch}`);
+    check('boardModel appends own row off-podium', o.bmOwnRow, `own=${o.bmOwnRow}`);
+    check('boardModel: no false you-flag', o.bmNoYou, `noYou=${o.bmNoYou}`);
+    check('board model covers every render branch', o.modelBranches, `branches=${o.modelBranches}`);
+    check('boards render (medals/you-pill/sep/plain)', o.rendered===true, `rendered=${o.rendered}`);
     check('no console errors / exceptions', errors.length===0, errors.join(' | ') || 'none');
 
     let failed=0;

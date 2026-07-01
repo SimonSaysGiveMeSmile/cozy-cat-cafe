@@ -122,6 +122,7 @@
   .board li{display:flex; align-items:center; gap:9px; padding:6px 2px; font-size:13px; border-bottom:1px solid var(--hair)}
   .board li:last-child{border-bottom:0}
   .board li .rk{width:18px; color:var(--soft); font-size:11px; text-align:right}
+  .board li .rk.medal{font-size:14px; text-align:center}
   .board li .nm{flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
   .board li .sc{color:var(--honey); font-weight:500}
   .board li.you{background:rgba(201,138,46,.12); border-radius:6px}
@@ -294,6 +295,21 @@ function submitRun(){ var u=apiURL(); var sc=curScore(); if(!u||NET.sent||sc<1) 
     .then(function(r){return r.json();}).then(function(d){ NET.done=true; if(d){ if(d.rank!=null) NET.rank=d.rank; applyBoard(d); renderModalBoard(); } })
     .catch(function(e){ NET.done=true; if(window.console&&console.warn) console.warn('catrun: run submit failed', (e&&e.message)||e); });
 }
+// Uniform row model for the on-screen boards: podium rows get a medal (top 3),
+// the player's own entry is flagged "you" by name, and — if they finished off the
+// shown list — their own standing is appended (sep) so they always see where they land.
+function boardModel(list, limit, myName, myRank, myScore, myChar){
+  var mine=(''+(myName||'')).toLowerCase();
+  var rows=(list||[]).slice(0,limit).map(function(T,i){
+    var nm=T.name||'anon';
+    return { rank:i+1, char:T.char||'', name:''+nm, score:T.score|0,
+             you: !!mine && (''+nm).toLowerCase()===mine, medal:i<3, sep:false };
+  });
+  if(myRank && myRank>rows.length){
+    rows.push({ rank:myRank, char:myChar||'', name:''+(myName||'you'), score:myScore|0, you:true, medal:false, sep:true });
+  }
+  return rows;
+}
 
 var TIERS=[
   {name:'COZY',mult:1.0,warm:0},
@@ -339,7 +355,7 @@ function gameOver(){
   S.phase='over'; S.slow=RM?1:0.35; p.spin=RM?0:1; S.spinT=0;
   beep(180,0.4,'sine',0.12); setTimeout(function(){beep(120,0.5,'sine',0.1);},120);
   var sc=curScore(); var nb=sc>S.hi; if(nb){ S.hi=sc; lset('cozyCatCafe.hi',S.hi); }
-  S.finalScore=sc; S.newBest=nb;
+  S.finalScore=sc; S.newBest=nb; S.finalChar=CH().e;
   submitRun(); // post to the global leaderboard (no-op offline / on file://)
   say('Game over. Score '+sc+'. '+(nb?'New best!':'Best '+S.hi)+'. Press space to retry.');
   hint(1);
@@ -452,9 +468,11 @@ function renderModalBoard(){
   if(today) today.textContent = NET.today ? (NET.today+' run'+(NET.today===1?'':'s')+' today') : '';
   if(!NET.top.length){ list.innerHTML='<li class="board-empty">be the first to set a score</li>'; return; }
   var mine=(NET.name||'').toLowerCase();
+  var MED=['🥇','🥈','🥉'];
   list.innerHTML = NET.top.slice(0,10).map(function(T,i){
     var nm=(T.name||'anon'); var you = mine && nm.toLowerCase()===mine ? 'you':'';
-    return '<li class="'+you+'"><span class="rk">'+(i+1)+'</span><span>'+esc(T.char||'')+'</span>'+
+    var rk = i<3 ? '<span class="rk medal">'+MED[i]+'</span>' : '<span class="rk">'+(i+1)+'</span>';
+    return '<li class="'+you+'">'+rk+'<span>'+esc(T.char||'')+'</span>'+
            '<span class="nm">'+esc(nm)+'</span><span class="sc">'+(T.score|0)+'m</span></li>';
   }).join('');
 }
@@ -719,8 +737,9 @@ function draw(){
       var gy=lerp(sm[gidx], sm[nx], fp-gidx), gx=p.x+goff[gi%goff.length];
       ctx.globalAlpha=0.17; ctx.font='38px '+EMO; ctx.fillStyle=lineCol(1);
       ctx.fillText(G.char||'🐾', gx, GY+gy-23);
-      ctx.globalAlpha=0.4; ctx.font='400 9px '+MONO; ctx.fillStyle=lineCol(1);
-      ctx.fillText(G.name, gx, GY+gy-48);
+      ctx.globalAlpha=0.42; ctx.font='400 9px '+MONO; ctx.fillStyle=lineCol(1);
+      var circ=['①','②','③','④']; // podium rank of the run you're chasing
+      ctx.fillText((circ[gi]||('#'+(gi+1)))+' '+G.name, gx, GY+gy-48);
       ctx.globalAlpha=1;
     }
   }
@@ -789,6 +808,31 @@ function pad(n){ n=''+n; while(n.length<5) n='0'+n; return n; }
 
 function veil(){ ctx.fillStyle=lineCol(0.12); ctx.fillRect(0,0,W,H); }
 function card(x,y,w,h){ ctx.fillStyle=fieldRGB(); roundRect(ctx,x,y,w,h,12); ctx.fill(); ctx.strokeStyle=lineCol(1); ctx.lineWidth=2; roundRect(ctx,x,y,w,h,12); ctx.stroke(); }
+// gold / silver / bronze medals — warm-palette accents that read on both day & night
+var MEDAL=['#C98A2E','#ADA598','#C26B62'];
+function medalDisc(x,y,rank){
+  ctx.beginPath(); ctx.arc(x,y,6.5,0,7); ctx.fillStyle=MEDAL[rank-1]||lineCol(0.4); ctx.fill();
+  ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.font='700 8px '+MONO; ctx.fillStyle='#231E19'; ctx.fillText(''+rank, x, y+0.5);
+  ctx.textBaseline='alphabetic';
+}
+// shared columnar leaderboard: [medal|rank] · char · name (left) · score (right),
+// with a honey pill behind the player's own row. Centered on cx.
+function drawBoardRows(rows, cx, y0, rowH){
+  var colW=250, x0=cx-colW/2, x1=cx+colW/2;
+  var mx=x0+12, chx=x0+30, nmx=x0+48, scx=x1-4;
+  for(var i=0;i<rows.length;i++){ var R=rows[i], y=y0+i*rowH;
+    if(R.sep){ ctx.strokeStyle=lineCol(0.22); ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(x0+6,y-rowH+5); ctx.lineTo(x1-6,y-rowH+5); ctx.stroke(); }
+    if(R.you){ ctx.fillStyle='rgba(201,138,46,0.15)'; roundRect(ctx,x0-2,y-11,colW+4,15,5); ctx.fill(); }
+    if(R.medal){ medalDisc(mx,y-4,R.rank); }
+    else { ctx.textAlign='center'; ctx.font='400 10px '+MONO; ctx.fillStyle=lineCol(R.you?0.9:0.55); ctx.fillText(R.rank<1000?(''+R.rank):'999+', mx, y); }
+    ctx.textAlign='center'; ctx.font='13px '+EMO; ctx.fillStyle=lineCol(1); ctx.fillText(R.char||'', chx, y);
+    var nm=R.name.length>12?R.name.slice(0,12):R.name;
+    ctx.textAlign='left'; ctx.font=(R.you?'500 ':'400 ')+'11px '+MONO; ctx.fillStyle=R.you?HONEY:lineCol(0.82); ctx.fillText(nm, nmx, y);
+    ctx.textAlign='right'; ctx.font='500 11px '+MONO; ctx.fillStyle=R.you?HONEY:lineCol(0.7); ctx.fillText(R.score+'m', scx, y);
+  }
+  ctx.textAlign='center';
+}
 
 function drawStart(){
   veil(); ctx.save(); ctx.translate(0,(H-380)/2);
@@ -803,15 +847,11 @@ function drawStart(){
   ctx.font='400 11px '+MONO; ctx.fillStyle=lineCol(0.55); ctx.fillText(ROSTER[startPreview].v, W/2, 268);
   ctx.font='500 14px '+MONO; ctx.fillStyle=lineCol(1); ctx.fillText(startHint(), W/2, 304+Math.sin(S.t*0.2)*1.2);
   ctx.font='400 11px '+MONO; ctx.fillStyle=lineCol(0.5); ctx.fillText('⇄ swap  ·  best '+pad(S.hi), W/2, 324);
-  // live global leaderboard (top 3 + runs today)
+  // live global leaderboard (podium + runs today)
   if(NET.top.length){
-    ctx.font='400 10px '+MONO; ctx.fillStyle=lineCol(0.5);
-    ctx.fillText('GLOBAL TOP  ·  '+NET.today+' RUN'+(NET.today===1?'':'S')+' TODAY', W/2, 341);
-    for(var li=0; li<Math.min(3,NET.top.length); li++){ var T=NET.top[li];
-      ctx.font=(li===0?'500 ':'400 ')+'11px '+MONO; ctx.fillStyle=lineCol(li===0?1:0.62);
-      var nm=(T.name||'anon'); if(nm.length>10) nm=nm.slice(0,10);
-      ctx.fillText((li+1)+'   '+(T.char||'')+'  '+nm+'   '+T.score+'m', W/2, 353+li*11); // last line y=375, clears the H=380 floor
-    }
+    ctx.font='400 10px '+MONO; ctx.fillStyle=lineCol(0.5); ctx.textAlign='center';
+    ctx.fillText('GLOBAL TOP  ·  '+NET.today+' RUN'+(NET.today===1?'':'S')+' TODAY', W/2, 334);
+    drawBoardRows(boardModel(NET.top,3,NET.name), W/2, 348, 12); // rows at 348/360/372 — clears the H=380 floor
   }
   ctx.restore();
 }
@@ -830,17 +870,14 @@ function drawOver(){
   ctx.fillStyle=lineCol(0.7); ctx.font='400 11px '+MONO; ctx.fillText(retryHint(), W/2, cardY+196);
   // global standing + mini leaderboard (only when online)
   if(apiURL()){
-    var by=cardY+chh+26;
+    var by=cardY+chh+24; ctx.textAlign='center';
     if(NET.rank){ ctx.fillStyle=HONEY; ctx.font='500 14px '+MONO; ctx.fillText('GLOBAL RANK  #'+NET.rank, W/2, by); }
     else if(!NET.done){ ctx.fillStyle=lineCol(0.5); ctx.font='400 11px '+MONO; ctx.fillText('posting your run…', W/2, by); }
     else { ctx.fillStyle=lineCol(0.5); ctx.font='400 11px '+MONO; ctx.fillText('keep climbing — not top 30 yet', W/2, by); }
     if(NET.top.length){
-      ctx.font='400 10px '+MONO; ctx.fillStyle=lineCol(0.45); ctx.fillText('— GLOBAL TOP —', W/2, by+22);
-      for(var li2=0; li2<Math.min(3,NET.top.length); li2++){ var T2=NET.top[li2];
-        ctx.font=(li2===0?'500 ':'400 ')+'11px '+MONO; ctx.fillStyle=lineCol(li2===0?0.95:0.7);
-        var nm2=(T2.name||'anon'); if(nm2.length>10) nm2=nm2.slice(0,10);
-        ctx.fillText((li2+1)+'   '+(T2.char||'')+'  '+nm2+'   '+T2.score+'m', W/2, by+38+li2*12);
-      }
+      ctx.font='400 10px '+MONO; ctx.fillStyle=lineCol(0.45); ctx.fillText('— GLOBAL TOP —', W/2, by+20);
+      // podium + the player's own row appended when they land off the podium
+      drawBoardRows(boardModel(NET.top,3,NET.name,NET.rank,S.finalScore,S.finalChar), W/2, by+36, 13);
     }
   }
   ctx.restore();
@@ -886,6 +923,7 @@ loadBoard(); // pull the global leaderboard + ghosts (no-op on file://)
 // expose for testing/CI screenshotting (read-only helpers — no gameplay effect)
 window.__cozy={S:S,start:start,swap:swap,jump:doJump,advance:advance,STEP:STEP,
   NET:NET,loadBoard:loadBoard,submitRun:submitRun,addCustom:addCustom,applyBoard:applyBoard,
+  boardModel:boardModel,draw:draw,drawBoardRows:drawBoardRows,setName:setName,
   setChar:function(i){ci=i;lset('cozyCatCafe.char',i);},
   setNight:function(v){S.night=v;nSmooth=v;},
   roster:ROSTER,p:p,obs:obs,
